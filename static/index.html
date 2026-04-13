@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NextRound — Smart Placement Prep</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-700 text-white grid place-items-center font-bold">NR</div>
+        <div>
+          <div class="font-bold text-slate-900">NextRound</div>
+          <div class="text-xs text-slate-500">by Valyrian Coders · Hack Fest 2026</div>
+        </div>
+        <span id="demo-badge" class="hidden ml-2 px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800 border border-amber-200">DEMO MODE</span>
+      </div>
+      <nav id="main-nav" class="hidden md:flex gap-1 text-sm">
+        <button data-tab="companies" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-100">🏢 Companies</button>
+        <button data-tab="experiences" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-100">📝 Experiences</button>
+        <button data-tab="ai" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-100">🤖 AI Prep</button>
+        <button data-tab="profile" class="tab-btn px-3 py-2 rounded-lg hover:bg-slate-100">👤 Profile</button>
+      </nav>
+      <div id="user-area" class="flex items-center gap-2 text-sm">
+        <button id="login-btn" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Sign in</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <!-- Auth tab -->
+    <section id="tab-auth" class="tab hidden">
+      <div class="max-w-md mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h2 class="text-xl font-bold mb-1">Welcome back</h2>
+        <p class="text-sm text-slate-500 mb-4">Sign in to access your personalized prep dashboard</p>
+        <div id="auth-tabs" class="flex gap-2 mb-4">
+          <button data-auth="login" class="auth-tab flex-1 py-2 rounded-lg bg-indigo-600 text-white">Login</button>
+          <button data-auth="register" class="auth-tab flex-1 py-2 rounded-lg bg-slate-100 text-slate-700">Register</button>
+        </div>
+        <form id="login-form" class="space-y-3">
+          <input required type="email" id="login-email" placeholder="Email" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+          <input required type="password" id="login-password" placeholder="Password" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+          <button class="w-full py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Sign in</button>
+        </form>
+        <form id="register-form" class="space-y-3 hidden">
+          <input required id="reg-name" placeholder="Full name" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+          <input required type="email" id="reg-email" placeholder="Email" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+          <input required type="password" id="reg-password" placeholder="Password" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+          <div class="grid grid-cols-2 gap-2">
+            <input type="number" step="0.01" id="reg-cgpa" placeholder="CGPA" class="px-3 py-2 border border-slate-300 rounded-lg"/>
+            <input type="number" id="reg-year" placeholder="Year (1-4)" class="px-3 py-2 border border-slate-300 rounded-lg"/>
+          </div>
+          <button class="w-full py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Create account</button>
+        </form>
+        <p id="auth-error" class="text-sm text-red-600 mt-3"></p>
+      </div>
+    </section>
+
+    <!-- Companies tab -->
+    <section id="tab-companies" class="tab hidden">
+      <div class="flex items-end justify-between mb-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Companies Recruiting</h2>
+          <p class="text-sm text-slate-500">Click a card to see senior experiences and full breakdown.</p>
+        </div>
+      </div>
+      <div id="companies-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- Company detail modal -->
+    <div id="company-modal" class="hidden fixed inset-0 bg-black/50 z-30 grid place-items-center p-4">
+      <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 shadow-xl">
+        <div class="flex justify-between items-start mb-3">
+          <h3 id="modal-name" class="text-2xl font-bold"></h3>
+          <button id="modal-close" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">&times;</button>
+        </div>
+        <div id="modal-body"></div>
+      </div>
+    </div>
+
+    <!-- Experiences tab -->
+    <section id="tab-experiences" class="tab hidden">
+      <div class="flex items-end justify-between mb-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900">Senior Experiences</h2>
+          <p class="text-sm text-slate-500">Real interview stories, tips, and verdicts.</p>
+        </div>
+        <button id="share-exp-btn" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm">+ Share your experience</button>
+      </div>
+      <div class="mb-4">
+        <select id="exp-filter" class="px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm">
+          <option value="">All companies</option>
+        </select>
+      </div>
+      <div id="experiences-list" class="space-y-3"></div>
+    </section>
+
+    <!-- Share experience modal -->
+    <div id="share-modal" class="hidden fixed inset-0 bg-black/50 z-30 grid place-items-center p-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold">Share your experience</h3>
+          <button id="share-close" class="text-slate-400 text-2xl leading-none">&times;</button>
+        </div>
+        <form id="share-form" class="space-y-3">
+          <select required id="share-company" class="w-full px-3 py-2 border border-slate-300 rounded-lg"></select>
+          <input required id="share-role" placeholder="Role (e.g. SDE Intern)" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+          <div class="grid grid-cols-2 gap-2">
+            <select required id="share-verdict" class="px-3 py-2 border border-slate-300 rounded-lg">
+              <option value="selected">Selected</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <input required type="number" id="share-year" placeholder="Year" class="px-3 py-2 border border-slate-300 rounded-lg"/>
+          </div>
+          <textarea required id="share-rounds" rows="4" placeholder="Describe the rounds..." class="w-full px-3 py-2 border border-slate-300 rounded-lg"></textarea>
+          <textarea required id="share-tips" rows="2" placeholder="Key tips for juniors..." class="w-full px-3 py-2 border border-slate-300 rounded-lg"></textarea>
+          <input required type="number" min="1" max="5" id="share-rating" placeholder="Difficulty 1-5" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+          <button class="w-full py-2 rounded-lg bg-indigo-600 text-white">Share</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- AI Prep tab -->
+    <section id="tab-ai" class="tab hidden">
+      <div class="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl p-6 mb-6 shadow-sm">
+        <h2 class="text-2xl font-bold">🤖 AI Prep — Your personal coach</h2>
+        <p class="text-indigo-100 text-sm mt-1">Grounded in real senior experiences. Pick a company below.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-6 shadow-sm">
+        <label class="text-sm font-medium text-slate-700">Target company</label>
+        <select id="ai-company" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg"></select>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button id="btn-plan" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm">📅 Generate Study Plan</button>
+          <button id="btn-score" class="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm">📊 Get Readiness Score</button>
+        </div>
+      </div>
+
+      <div id="ai-results" class="space-y-4 mb-6"></div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <h3 class="font-bold mb-2">💬 Ask anything</h3>
+        <div id="chat-log" class="space-y-2 max-h-80 overflow-y-auto mb-3 text-sm"></div>
+        <form id="chat-form" class="flex gap-2">
+          <input id="chat-input" placeholder="e.g. How should I approach Zoho's debugging round?" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg"/>
+          <button class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Send</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Profile tab -->
+    <section id="tab-profile" class="tab hidden">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm max-w-2xl">
+        <h2 class="text-2xl font-bold mb-4">My Profile</h2>
+        <form id="profile-form" class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-sm text-slate-600">Name</label>
+              <input id="p-name" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+            </div>
+            <div>
+              <label class="text-sm text-slate-600">Department</label>
+              <input id="p-dept" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+            </div>
+            <div>
+              <label class="text-sm text-slate-600">CGPA</label>
+              <input type="number" step="0.01" id="p-cgpa" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+            </div>
+            <div>
+              <label class="text-sm text-slate-600">Year</label>
+              <input type="number" id="p-year" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+            </div>
+          </div>
+          <div>
+            <label class="text-sm text-slate-600">Skills (comma separated)</label>
+            <input id="p-skills" class="w-full px-3 py-2 border border-slate-300 rounded-lg"/>
+          </div>
+          <div>
+            <label class="text-sm text-slate-600">Target companies</label>
+            <select id="p-targets" multiple class="w-full px-3 py-2 border border-slate-300 rounded-lg h-32"></select>
+            <p class="text-xs text-slate-500 mt-1">Ctrl/Cmd+click to select multiple.</p>
+          </div>
+          <button class="px-4 py-2 rounded-lg bg-indigo-600 text-white">Save profile</button>
+          <p id="profile-msg" class="text-sm text-emerald-600"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
