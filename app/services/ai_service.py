@@ -5,19 +5,19 @@ from app.config import settings
 
 DEMO_MODE = settings.demo_mode
 
-_model = None
+_client = None
+MODEL_NAME = "llama-3.3-70b-versatile"
 
 if DEMO_MODE:
-    print("⚠️  [DEMO MODE] Gemini API key not configured — using canned responses.")
+    print("⚠️  [DEMO MODE] Groq API key not configured — using canned responses.")
 else:
     try:
-        import google.generativeai as genai
+        from groq import Groq
 
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        _model = genai.GenerativeModel("gemini-2.0-flash")
-        print("✅ Gemini live mode enabled (gemini-2.0-flash).")
+        _client = Groq(api_key=settings.GROQ_API_KEY)
+        print(f"✅ Groq live mode enabled ({MODEL_NAME}).")
     except Exception as e:
-        print(f"⚠️  [DEMO MODE] Failed to init Gemini ({e}) — falling back to canned responses.")
+        print(f"⚠️  [DEMO MODE] Failed to init Groq ({e}) — falling back to canned responses.")
         DEMO_MODE = True
 
 
@@ -87,44 +87,11 @@ def _demo_chat(message: str, company_name: Optional[str]) -> str:
         f"2. Seniors consistently mention that clean communication during the coding round matters as much as the solution.\n"
         f"3. Practice 2–3 problems daily and do at least one timed mock per week.\n\n"
         f"You've got this — the fact that you're preparing early already puts you ahead. 💪\n\n"
-        f"_(Demo mode reply — add a real GEMINI_API_KEY in .env for personalized grounded answers.)_"
+        f"_(Demo mode reply — add a real GROQ_API_KEY in .env for personalized grounded answers.)_"
     )
 
 
-# ---------- Live helpers ----------
-STUDY_PLAN_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "weeks": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "week_number": {"type": "integer"},
-                    "focus": {"type": "string"},
-                    "topics": {"type": "array", "items": {"type": "string"}},
-                    "resources": {"type": "array", "items": {"type": "string"}},
-                    "practice_goal": {"type": "string"},
-                },
-                "required": ["week_number", "focus", "topics", "resources", "practice_goal"],
-            },
-        }
-    },
-    "required": ["weeks"],
-}
-
-READINESS_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "score": {"type": "integer"},
-        "strengths": {"type": "array", "items": {"type": "string"}},
-        "gaps": {"type": "array", "items": {"type": "string"}},
-        "action_items": {"type": "array", "items": {"type": "string"}},
-    },
-    "required": ["score", "strengths", "gaps", "action_items"],
-}
-
-
+# ---------- Context builder ----------
 def _context_block(user, company, experiences) -> str:
     exp_text = "\n\n".join(
         [
@@ -146,31 +113,61 @@ def _context_block(user, company, experiences) -> str:
     )
 
 
+# ---------- Groq helpers ----------
+def _groq_json(system: str, user_msg: str, temperature: float = 0.7) -> dict:
+    """Call Groq with JSON mode, return parsed dict."""
+    resp = _client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[
+            {
+                "role": "system",
+                "content": system + "\n\nIMPORTANT: Respond ONLY with valid JSON. No markdown fences, no explanations.",
+            },
+            {"role": "user", "content": user_msg},
+        ],
+        response_format={"type": "json_object"},
+        temperature=temperature,
+        max_tokens=2048,
+    )
+    return json.loads(resp.choices[0].message.content)
+
+
+def _groq_text(system: str, user_msg: str, temperature: float = 0.8, max_tokens: int = 800) -> str:
+    """Call Groq for a plain text reply."""
+    resp = _client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_msg},
+        ],
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return resp.choices[0].message.content
+
+
 # ---------- Public API ----------
 def generate_study_plan(user, company, experiences) -> dict:
     if DEMO_MODE:
         return _demo_study_plan(company.name)
     try:
-        import google.generativeai as genai
-
         ctx = _context_block(user, company, experiences)
-        prompt = (
+        system = (
+            "You are an expert campus placement coach for Indian engineering students. "
+            "You create personalized 4-week study plans grounded in real senior experiences."
+        )
+        user_msg = (
             "Create a 4-week personalized placement prep plan grounded in the senior experiences "
-            "below. Tailor it to the student's skills and the company's rounds/topics.\n\n" + ctx
+            "below. Tailor it to the student's skills and the company's rounds/topics.\n\n"
+            f"{ctx}\n\n"
+            'Return JSON in this EXACT shape: {"weeks": [{"week_number": 1, "focus": "...", '
+            '"topics": ["..."], "resources": ["..."], "practice_goal": "..."}, ...]}. '
+            "Include exactly 4 weeks."
         )
-        model = genai.GenerativeModel(
-            "gemini-2.0-flash",
-            system_instruction="You are an expert campus placement coach for Indian engineering students.",
-        )
-        resp = model.generate_content(
-            prompt,
-            generation_config={
-                "response_mime_type": "application/json",
-                "response_schema": STUDY_PLAN_SCHEMA,
-                "temperature": 0.7,
-            },
-        )
-        return json.loads(resp.text)
+        result = _groq_json(system, user_msg, temperature=0.7)
+        if "weeks" not in result or not isinstance(result["weeks"], list):
+            raise ValueError("Invalid plan shape from model")
+        return result
     except Exception as e:
         print(f"[AI] study_plan fallback due to error: {e}")
         return _demo_study_plan(company.name)
@@ -180,26 +177,27 @@ def generate_readiness_score(user, company, experiences) -> dict:
     if DEMO_MODE:
         return _demo_readiness(company.name)
     try:
-        import google.generativeai as genai
-
         ctx = _context_block(user, company, experiences)
-        prompt = (
+        system = (
+            "You are a strict but encouraging placement mentor. You assess a student's readiness "
+            "for a specific company honestly, grounded in evidence from senior experiences."
+        )
+        user_msg = (
             "Assess this student's readiness for the target company. Score 0-100. "
-            "Be honest and specific — ground gaps in the senior experiences provided.\n\n" + ctx
+            "Be honest and specific — ground gaps in the senior experiences provided.\n\n"
+            f"{ctx}\n\n"
+            'Return JSON in this EXACT shape: {"score": <int 0-100>, "strengths": ["..."], '
+            '"gaps": ["..."], "action_items": ["..."]}. Each list should have 3-5 items.'
         )
-        model = genai.GenerativeModel(
-            "gemini-2.0-flash",
-            system_instruction="You are a strict but encouraging placement mentor.",
-        )
-        resp = model.generate_content(
-            prompt,
-            generation_config={
-                "response_mime_type": "application/json",
-                "response_schema": READINESS_SCHEMA,
-                "temperature": 0.4,
-            },
-        )
-        return json.loads(resp.text)
+        result = _groq_json(system, user_msg, temperature=0.4)
+        # Light validation
+        if "score" not in result:
+            raise ValueError("Missing score in response")
+        result["score"] = int(result["score"])
+        for k in ("strengths", "gaps", "action_items"):
+            if k not in result or not isinstance(result[k], list):
+                result[k] = []
+        return result
     except Exception as e:
         print(f"[AI] readiness fallback due to error: {e}")
         return _demo_readiness(company.name)
@@ -210,20 +208,20 @@ def chat(user, company, experiences, message: str) -> str:
     if DEMO_MODE:
         return _demo_chat(message, company_name)
     try:
-        import google.generativeai as genai
-
         system_prompt = (
             "You are helping a student prepare for campus placements at an Indian engineering "
             "college. Ground your answer in the senior experiences provided below. Be specific, "
-            "actionable, and warm."
+            "actionable, and warm. Keep responses focused (2-4 short paragraphs)."
         )
-        ctx = _context_block(user, company, experiences) if company else f"STUDENT: {user.name}, skills: {user.skills}"
-        model = genai.GenerativeModel("gemini-2.0-flash", system_instruction=system_prompt)
-        resp = model.generate_content(
-            f"{ctx}\n\nSTUDENT QUESTION: {message}",
-            generation_config={"temperature": 0.8, "max_output_tokens": 800},
-        )
-        return resp.text
+        if company:
+            ctx = _context_block(user, company, experiences)
+        else:
+            ctx = (
+                f"STUDENT PROFILE:\n- Name: {user.name}, Year {user.year} {user.department}, "
+                f"CGPA {user.cgpa}\n- Skills: {', '.join(user.skills or [])}\n"
+            )
+        user_msg = f"{ctx}\n\nSTUDENT QUESTION: {message}"
+        return _groq_text(system_prompt, user_msg, temperature=0.8, max_tokens=800)
     except Exception as e:
         print(f"[AI] chat fallback due to error: {e}")
         return _demo_chat(message, company_name)
