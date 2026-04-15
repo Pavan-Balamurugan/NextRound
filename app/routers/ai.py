@@ -13,6 +13,7 @@ from app.schemas import (
     ReadinessResponse,
 )
 from app.services import ai_service
+from app.routers.streak import _compute_consistency
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -38,7 +39,8 @@ def study_plan(
     current: User = Depends(get_current_user),
 ):
     company, experiences = _load_context(db, payload.company_id)
-    plan = ai_service.generate_study_plan(current, company, experiences)
+    weeks = max(2, min(12, payload.weeks or 4))  # clamp 2–12 weeks
+    plan = ai_service.generate_study_plan(current, company, experiences, weeks=weeks)
     db.add(
         StudyPlan(
             user_id=current.id,
@@ -57,7 +59,26 @@ def readiness_score(
     current: User = Depends(get_current_user),
 ):
     company, experiences = _load_context(db, payload.company_id)
-    return ai_service.generate_readiness_score(current, company, experiences)
+    result = ai_service.generate_readiness_score(current, company, experiences)
+
+    # Blend: 70% AI score + 30% consistency score
+    consistency = _compute_consistency(current.login_history or [])
+    raw_ai = result["score"]
+    blended = round(0.7 * raw_ai + 0.3 * consistency)
+    result["score"] = blended
+    result.setdefault("strengths", [])
+    result.setdefault("gaps", [])
+    result.setdefault("action_items", [])
+
+    # Add consistency context to strengths/gaps
+    if consistency >= 60:
+        result["strengths"].insert(0, f"🔥 {current.current_streak or 0}-day login streak — great consistency!")
+    elif consistency >= 30:
+        result["action_items"].insert(0, f"📅 Consistency score: {consistency}/100 — log in daily to boost your score")
+    else:
+        result["gaps"].insert(0, f"📅 Low consistency ({consistency}/100) — daily logins raise your readiness by up to 30 pts")
+
+    return result
 
 
 @router.post("/chat", response_model=ChatResponse)

@@ -34,6 +34,18 @@ def run():
             skills=["Java", "Spring Boot", "AWS", "System Design"],
             target_companies=[],
         )
+        officer = User(
+            name="Dr. Priya Menon",
+            email="officer@college.edu",
+            password_hash=hash_password("password123"),
+            role="placement_officer",
+            department="Placement Cell",
+            year=0,
+            cgpa=0.0,
+            skills=[],
+            target_companies=[],
+        )
+        db.add(officer)
         db.add_all([arya, jon])
         db.commit()
 

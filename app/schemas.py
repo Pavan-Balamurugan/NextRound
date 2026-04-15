@@ -28,6 +28,12 @@ class UserOut(BaseModel):
     year: int
     skills: List[str] = []
     target_companies: List[int] = []
+    resume_data: Optional[dict] = None
+    placement_status: str = "unplaced"
+    placed_company_id: Optional[int] = None
+    current_streak: int = 0
+    longest_streak: int = 0
+    login_history: List[str] = []
 
 
 class Token(BaseModel):
@@ -92,6 +98,7 @@ class CompanyDetail(CompanyOut):
 # ---------- AI ----------
 class AIRequest(BaseModel):
     company_id: int
+    weeks: Optional[int] = 4  # custom plan duration, 2-12 weeks
 
 
 class ChatRequest(BaseModel):
@@ -130,3 +137,55 @@ class ResumeUploadResponse(BaseModel):
     extracted: ResumeExtractResponse
     skills_added: int
     message: str
+
+
+class CompanyCreate(BaseModel):
+    name: str
+    sector: Optional[str] = ""
+    ctc_min: Optional[float] = 0
+    ctc_max: Optional[float] = 0
+    eligibility_cgpa: Optional[float] = 0
+    difficulty: Optional[str] = "medium"
+    rounds: List[str] = []
+    topics: List[str] = []
+    description: Optional[str] = ""
+
+class CompanyUpdate(BaseModel):
+    name: Optional[str] = None
+    sector: Optional[str] = None
+    ctc_min: Optional[float] = None
+    ctc_max: Optional[float] = None
+    eligibility_cgpa: Optional[float] = None
+    difficulty: Optional[str] = None
+    rounds: Optional[List[str]] = None
+    topics: Optional[List[str]] = None
+    description: Optional[str] = None
+
+class StudentSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    email: EmailStr
+    department: str
+    year: int
+    cgpa: float
+    placement_status: str
+    placed_company_id: Optional[int] = None
+
+class PlacementUpdate(BaseModel):
+    placement_status: str  # "placed" or "unplaced"
+    placed_company_id: Optional[int] = None
+
+class AdminStats(BaseModel):
+    total_students: int
+    placed_students: int
+    unplaced_students: int
+    total_companies: int
+    total_experiences: int
+    placement_percentage: float
+
+class StreakOut(BaseModel):
+    current_streak: int
+    longest_streak: int
+    consistency_score: int   # 0-100, based on last 30 days
+    login_history: List[str] = []

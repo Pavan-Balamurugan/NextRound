@@ -33,3 +33,20 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if not user:
         raise cred_exc
     return user
+
+
+def require_placement_officer(current: User = Depends(get_current_user)) -> User:
+    if current.role != "placement_officer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Placement officer access required"
+        )
+    return current
+
+def require_alumni_or_officer(current: User = Depends(get_current_user)) -> User:
+    if current.role not in ("alumni", "placement_officer"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Alumni or placement officer access required"
+        )
+    return current

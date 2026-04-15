@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth, companies, experiences, profile, ai
+from app.routers import auth, companies, experiences, profile, ai, resume, admin, streak
 from app.schemas import HealthResponse
 
 Base.metadata.create_all(bind=engine)
@@ -27,6 +27,9 @@ app.include_router(companies.router)
 app.include_router(experiences.router)
 app.include_router(profile.router)
 app.include_router(ai.router)
+app.include_router(resume.router)
+app.include_router(admin.router)
+app.include_router(streak.router)
 
 
 @app.get("/api/health", response_model=HealthResponse)
