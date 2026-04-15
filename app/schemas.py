@@ -117,3 +117,16 @@ class ReadinessResponse(BaseModel):
 class HealthResponse(BaseModel):
     demo_mode: bool
     status: str = "ok"
+
+class ResumeExtractResponse(BaseModel):
+    skills: List[str] = []
+    projects: List[str] = []
+    certifications: List[str] = []
+    education: List[str] = []
+    experience: List[str] = []
+    summary: str = ""
+
+class ResumeUploadResponse(BaseModel):
+    extracted: ResumeExtractResponse
+    skills_added: int
+    message: str

@@ -19,6 +19,7 @@ class User(Base):
     year = Column(Integer, default=3)
     skills = Column(JSON, default=list)
     target_companies = Column(JSON, default=list)
+    resume_data = Column(JSON, nullable=True, default=None)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     experiences = relationship("Experience", back_populates="user", cascade="all, delete-orphan")
